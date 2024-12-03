@@ -140,7 +140,7 @@ type ContextParams struct {
 	c C.struct_llama_context_params
 }
 
-func NewContextParams(numCtx int, batchSize int, numSeqMax int, threads int, flashAttention bool, reranking bool) ContextParams {
+func NewContextParams(numCtx int, batchSize int, numSeqMax int, threads int, flashAttention bool, reranking bool, kvCacheType string) ContextParams {
 	params := C.llama_context_default_params()
 	params.n_ctx = C.uint(numCtx)
 	params.n_batch = C.uint(batchSize)
@@ -152,7 +152,26 @@ func NewContextParams(numCtx int, batchSize int, numSeqMax int, threads int, fla
 	if reranking {
 		params.pooling_type = C.LLAMA_POOLING_TYPE_RANK
 	}
+	params.type_k = kvCacheTypeFromStr(strings.ToLower(kvCacheType))
+	params.type_v = kvCacheTypeFromStr(strings.ToLower(kvCacheType))
+
 	return ContextParams{c: params}
+}
+
+// kvCacheTypeFromStr converts a string cache type to the corresponding GGML type value
+func kvCacheTypeFromStr(s string) C.enum_ggml_type {
+	if s == "" {
+		return C.GGML_TYPE_F16
+	}
+
+	switch s {
+	case "q8_0":
+		return C.GGML_TYPE_Q8_0
+	case "q4_0":
+		return C.GGML_TYPE_Q4_0
+	default:
+		return C.GGML_TYPE_F16
+	}
 }
 
 type Context struct {
