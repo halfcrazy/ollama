@@ -1005,7 +1005,6 @@ func Execute(args []string) error {
 	level := slog.LevelInfo
 	if *verbose {
 		level = slog.LevelDebug
-		llama.EnableDebug()
 	}
 	handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 		Level:     level,
