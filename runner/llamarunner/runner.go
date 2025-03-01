@@ -1021,7 +1021,6 @@ func Execute(args []string) error {
 	slog.Info("starting go runner")
 
 	llama.BackendInit()
-	slog.Info("system", "info", llama.PrintSystemInfo(), "threads", *threads)
 
 	server := &Server{
 		batchSize: *batchSize,
