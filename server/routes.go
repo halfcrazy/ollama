@@ -1275,6 +1275,8 @@ func (s *Server) GenerateRoutes(rc *ollama.Registry) (http.Handler, error) {
 		Client:   rc,
 		Logger:   slog.Default(), // TODO(bmizerany): Take a logger, do not use slog.Default()
 		Fallback: r,
+
+		Prune: PruneLayers,
 	}
 
 	return rs, nil
