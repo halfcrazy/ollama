@@ -588,7 +588,7 @@ func (llm GGML) VisionGraphSize() (weights, graphSize uint64) {
 	}
 
 	for name, layer := range llm.Tensors().GroupLayers() {
-		if strings.HasPrefix(name, "v.") {
+		if name == "v" || strings.HasPrefix(name, "v.") {
 			for _, tensor := range layer {
 				weights += tensor.Size()
 			}
