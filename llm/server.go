@@ -45,6 +45,7 @@ type LlamaServer interface {
 	EstimatedVRAM() uint64 // Total VRAM across all GPUs
 	EstimatedTotal() uint64
 	EstimatedVRAMByGPU(gpuID string) uint64
+	Pid() int
 }
 
 // llmServer is an instance of the llama.cpp server
@@ -525,6 +526,9 @@ func (s *llmServer) getServerStatus(ctx context.Context) (ServerStatus, error) {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return ServerStatusNotResponding, errors.New("server not responding")
 		}
+		if strings.Contains(err.Error(), "connection refused") {
+			return ServerStatusNotResponding, errors.New("connection refused")
+		}
 		return ServerStatusError, fmt.Errorf("health resp: %w", err)
 	}
 	defer resp.Body.Close()
@@ -643,6 +647,13 @@ func (s *llmServer) WaitUntilRunning(ctx context.Context) error {
 			continue
 		}
 	}
+}
+
+func (s *llmServer) Pid() int {
+	if s.cmd != nil && s.cmd.Process != nil {
+		return s.cmd.Process.Pid
+	}
+	return -1
 }
 
 var grammarJSON = `
