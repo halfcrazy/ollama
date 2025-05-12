@@ -17,7 +17,6 @@ import (
 	"net/netip"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -34,6 +33,7 @@ import (
 	"github.com/ollama/ollama/envconfig"
 	"github.com/ollama/ollama/fs/ggml"
 	"github.com/ollama/ollama/llm"
+	"github.com/ollama/ollama/logutil"
 	"github.com/ollama/ollama/model/models/mllama"
 	"github.com/ollama/ollama/openai"
 	"github.com/ollama/ollama/server/internal/client/ollama"
@@ -295,8 +295,6 @@ func (s *Server) GenerateHandler(c *gin.Context) {
 
 		prompt = b.String()
 	}
-
-	slog.Debug("generate request", "images", len(images), "prompt", prompt)
 
 	ch := make(chan any)
 	go func() {
@@ -1302,26 +1300,8 @@ func (s *Server) GenerateRoutes(rc *ollama.Registry) (http.Handler, error) {
 }
 
 func Serve(ln net.Listener) error {
-	level := slog.LevelInfo
-	if envconfig.Debug() {
-		level = slog.LevelDebug
-	}
-
+	slog.SetDefault(logutil.NewLogger(os.Stderr, envconfig.LogLevel()))
 	slog.Info("server config", "env", envconfig.Values())
-	handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level:     level,
-		AddSource: true,
-		ReplaceAttr: func(_ []string, attr slog.Attr) slog.Attr {
-			if attr.Key == slog.SourceKey {
-				source := attr.Value.Any().(*slog.Source)
-				source.File = filepath.Base(source.File)
-			}
-
-			return attr
-		},
-	})
-
-	slog.SetDefault(slog.New(handler))
 
 	blobsDir, err := GetBlobsPath("")
 	if err != nil {
@@ -1596,8 +1576,6 @@ func (s *Server) ChatHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	slog.Debug("chat request", "images", len(images), "prompt", prompt)
 
 	ch := make(chan any)
 	go func() {
