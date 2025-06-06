@@ -38,6 +38,7 @@ import (
 	"github.com/ollama/ollama/server/internal/client/ollama"
 	"github.com/ollama/ollama/server/internal/registry"
 	"github.com/ollama/ollama/template"
+	"github.com/ollama/ollama/thinking"
 	"github.com/ollama/ollama/tools"
 	"github.com/ollama/ollama/types/errtypes"
 	"github.com/ollama/ollama/types/model"
@@ -283,10 +284,10 @@ func (s *Server) GenerateHandler(c *gin.Context) {
 		prompt = b.String()
 	}
 
-	var thinkingState *ThinkingParser
-	openingTag, closingTag := inferThinkingTags(m.Template.Template)
+	var thinkingState *thinking.Parser
+	openingTag, closingTag := thinking.InferTags(m.Template.Template)
 	if req.Think != nil && *req.Think && openingTag != "" && closingTag != "" {
-		thinkingState = &ThinkingParser{
+		thinkingState = &thinking.Parser{
 			OpeningTag: openingTag,
 			ClosingTag: closingTag,
 		}
@@ -1598,10 +1599,10 @@ func (s *Server) ChatHandler(c *gin.Context) {
 		return
 	}
 
-	var thinkingState *ThinkingParser
-	openingTag, closingTag := inferThinkingTags(m.Template.Template)
+	var thinkingState *thinking.Parser
+	openingTag, closingTag := thinking.InferTags(m.Template.Template)
 	if req.Think != nil && *req.Think && openingTag != "" && closingTag != "" {
-		thinkingState = &ThinkingParser{
+		thinkingState = &thinking.Parser{
 			OpeningTag: openingTag,
 			ClosingTag: closingTag,
 		}
@@ -1752,7 +1753,7 @@ func filterThinkTags(msgs []api.Message, m *Model) []api.Message {
 				// change the user output), we should probably perform this filtering
 				// for all thinking models (not just qwen3 & deepseek-r1) since it tends
 				// to save tokens and improve quality.
-				thinkingState := &ThinkingParser{
+				thinkingState := &thinking.Parser{
 					OpeningTag: "<think>",
 					ClosingTag: "</think>",
 				}
