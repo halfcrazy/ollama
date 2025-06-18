@@ -408,7 +408,7 @@ func (s *Server) RerankHandler(c *gin.Context) {
 		req.Options = make(map[string]any)
 	}
 	req.Options["reranking"] = true
-	r, _, _, err := s.scheduleRunner(c.Request.Context(), req.Model, []Capability{}, req.Options, req.KeepAlive)
+	r, _, _, err := s.scheduleRunner(c.Request.Context(), req.Model, []model.Capability{}, req.Options, req.KeepAlive)
 	if err != nil {
 		handleScheduleError(c, req.Model, err)
 		return

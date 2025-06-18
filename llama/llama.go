@@ -198,15 +198,15 @@ func (c *Context) GetEmbeddingsIth(i int) []float32 {
 }
 
 func (c *Context) GetTokenBOS() C.llama_token {
-	return C.llama_token_bos(c.Model().c)
+	return C.llama_vocab_bos(c.Model().Vocab())
 }
 
 func (c *Context) GetTokenEOS() C.llama_token {
-	return C.llama_token_eos(c.Model().c)
+	return C.llama_vocab_eos(c.Model().Vocab())
 }
 
 func (c *Context) GetTokenSEP() C.llama_token {
-	return C.llama_token_sep(c.Model().c)
+	return C.llama_vocab_sep(c.Model().Vocab())
 }
 
 type ModelParams struct {
@@ -292,7 +292,7 @@ func (m *Model) AddBOSToken() bool {
 }
 
 func (m *Model) AddEOSToken() bool {
-	return bool(C.llama_add_eos_token(m.c))
+	return bool(C.llama_vocab_get_add_eos(m.Vocab()))
 }
 
 func (m *Model) ApplyLoraFromFile(context *Context, loraPath string, scale float32, threads int) error {

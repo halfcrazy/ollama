@@ -977,7 +977,7 @@ func (s *llmServer) Rerank(ctx context.Context, req RerankRequest, fn func(Reran
 	if err != nil {
 		return err
 	} else if status != ServerStatusReady {
-		return fmt.Errorf("unexpected server status: %s", status.ToString())
+		return fmt.Errorf("unexpected server status: %s", status.String())
 	}
 
 	data, err := json.Marshal(req)
