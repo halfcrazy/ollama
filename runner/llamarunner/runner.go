@@ -724,18 +724,18 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 }
 
 type RerankRequest struct {
-	Model       string   `json:"model"`
-	Query       string   `json:"query"`
-	TopN        int      `json:"top_n"`     // return top N documents
-	Documents   []string `json:"documents"` // list of documents to rerank
-	CachePrompt bool     `json:"cache_prompt"`
+	Model     string   `json:"model"`
+	Query     string   `json:"query"`
+	Documents []string `json:"documents"` // list of documents to rerank
+}
+
+type RerankResult struct {
+	Index          int     `json:"index"`
+	RelevanceScore float32 `json:"relevance_score"`
 }
 
 type RerankResponse struct {
-	Results []struct {
-		Index          int     `json:"index"`
-		RelevanceScore float32 `json:"relevance_score"`
-	} `json:"results"`
+	Results []RerankResult `json:"results"`
 }
 
 func (s *Server) rerank(w http.ResponseWriter, r *http.Request) {
@@ -747,10 +747,7 @@ func (s *Server) rerank(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var rsp RerankResponse
-	rsp.Results = make([]struct {
-		Index          int     `json:"index"`
-		RelevanceScore float32 `json:"relevance_score"`
-	}, len(req.Documents))
+	rsp.Results = make([]RerankResult, 0, len(req.Documents))
 
 	for i, doc := range req.Documents {
 		// reranking prompt format: [BOS]query[EOS][SEP]doc[EOS]
@@ -780,15 +777,16 @@ func (s *Server) rerank(w http.ResponseWriter, r *http.Request) {
 
 		s.mu.Lock()
 		found := false
-		for i, sq := range s.seqs {
+		for j, sq := range s.seqs {
 			if sq == nil {
-				seq.cache, seq.inputs, err = s.cache.LoadCacheSlot(seq.inputs, req.CachePrompt)
+				seq.cache, seq.inputs, err = s.cache.LoadCacheSlot(seq.inputs, false)
 				if err != nil {
 					s.mu.Unlock()
+					s.seqsSem.Release(1)
 					http.Error(w, fmt.Sprintf("Failed to load cache: %v", err), http.StatusInternalServerError)
 					return
 				}
-				s.seqs[i] = seq
+				s.seqs[j] = seq
 				s.cond.Signal()
 				found = true
 				break
@@ -797,13 +795,17 @@ func (s *Server) rerank(w http.ResponseWriter, r *http.Request) {
 		s.mu.Unlock()
 
 		if !found {
+			s.seqsSem.Release(1)
 			http.Error(w, "could not find an available sequence", http.StatusInternalServerError)
 			return
 		}
 
 		score := <-seq.embedding
-		rsp.Results[i].Index = i
-		rsp.Results[i].RelevanceScore = score[0]
+
+		rsp.Results = append(rsp.Results, RerankResult{
+			Index:          i,
+			RelevanceScore: score[0],
+		})
 	}
 
 	if err := json.NewEncoder(w).Encode(&rsp); err != nil {
@@ -889,7 +891,7 @@ func Execute(args []string) error {
 	noMmap := fs.Bool("no-mmap", false, "do not memory-map model (slower load but may reduce pageouts if not using mlock)")
 	tensorSplit := fs.String("tensor-split", "", "fraction of the model to offload to each GPU, comma-separated list of proportions")
 	multiUserCache := fs.Bool("multiuser-cache", false, "optimize input cache algorithm for multiple users")
-	reranking := flag.Bool("reranking", false, "enable reranking")
+	reranking := fs.Bool("reranking", false, "enable reranking")
 
 	var lpaths multiLPath
 	fs.Var(&lpaths, "lora", "Path to lora layer file (can be specified multiple times)")

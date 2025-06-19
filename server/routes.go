@@ -417,7 +417,6 @@ func (s *Server) RerankHandler(c *gin.Context) {
 	llmreq := llm.RerankRequest{
 		Model:     req.Model,
 		Query:     req.Query,
-		TopN:      req.TopN,
 		Documents: req.Documents,
 	}
 	err = r.Rerank(c.Request.Context(), llmreq, func(rr llm.RerankResponse) {
@@ -436,13 +435,21 @@ func (s *Server) RerankHandler(c *gin.Context) {
 		rsp := api.RerankResponse{
 			Model: req.Model,
 			Results: make([]struct {
-				Document       string  `json:"document"`
+				Index    int `json:"index"`
+				Document *struct {
+					Text string `json:"text"`
+				} `json:"document,omitempty"`
 				RelevanceScore float32 `json:"relevance_score"`
 			}, topn),
 		}
 
 		for i, result := range topResults {
-			rsp.Results[i].Document = req.Documents[result.Index]
+			rsp.Results[i].Index = result.Index
+			if req.ReturnDocuments {
+				rsp.Results[i].Document = &struct {
+					Text string `json:"text"`
+				}{Text: req.Documents[result.Index]}
+			}
 			rsp.Results[i].RelevanceScore = result.RelevanceScore
 		}
 
