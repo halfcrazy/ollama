@@ -404,20 +404,44 @@ func (s *Server) RerankHandler(c *gin.Context) {
 		return
 	}
 
+	name := model.ParseName(req.Model)
+	if !name.IsValid() {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "model is required"})
+		return
+	}
+	name, err := getExistingName(name)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("model '%s' not found", req.Model)})
+		return
+	}
+
 	if req.Options == nil {
 		req.Options = make(map[string]any)
 	}
 	req.Options["reranking"] = true
-	r, _, _, err := s.scheduleRunner(c.Request.Context(), req.Model, []model.Capability{}, req.Options, req.KeepAlive)
+	r, m, _, err := s.scheduleRunner(c.Request.Context(), req.Model, []model.Capability{}, req.Options, req.KeepAlive)
 	if err != nil {
 		handleScheduleError(c, req.Model, err)
 		return
 	}
+	if m.Template == nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("model '%s' missing template", req.Model)})
+		return
+	}
+	var b bytes.Buffer
+	var values template.Values
+	values.Query = req.Query
+	values.Documents = req.Documents
+	if err := m.Template.Execute(&b, values); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	prompt := b.String()
+	slog.Info("model template", "template", m.Template.String(), "prompt", prompt)
 
 	llmreq := llm.RerankRequest{
-		Model:     req.Model,
-		Query:     req.Query,
-		Documents: req.Documents,
+		Model:   req.Model,
+		Prompts: strings.Split(strings.TrimSpace(prompt), "\n"),
 	}
 	err = r.Rerank(c.Request.Context(), llmreq, func(rr llm.RerankResponse) {
 		sort.SliceStable(rr.Results, func(i, j int) bool {

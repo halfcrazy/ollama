@@ -724,9 +724,8 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 }
 
 type RerankRequest struct {
-	Model     string   `json:"model"`
-	Query     string   `json:"query"`
-	Documents []string `json:"documents"` // list of documents to rerank
+	Model   string   `json:"model"`
+	Prompts []string `json:"prompts"`
 }
 
 type RerankResult struct {
@@ -747,19 +746,18 @@ func (s *Server) rerank(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var rsp RerankResponse
-	rsp.Results = make([]RerankResult, 0, len(req.Documents))
+	rsp.Results = make([]RerankResult, 0, len(req.Prompts))
 
-	for i, doc := range req.Documents {
-		// reranking prompt format: [BOS]query[EOS][SEP]doc[EOS]
-		p := ""
+	for i, prompt := range req.Prompts {
 		if !s.model.AddBOSToken() {
-			p += s.model.TokenToPiece(int(s.lc.GetTokenBOS()))
+			prompt = strings.ReplaceAll(prompt, "[BOS]", s.model.TokenToPiece(int(s.lc.GetTokenBOS())))
 		}
-		p += req.Query + s.model.TokenToPiece(int(s.lc.GetTokenEOS())) + s.model.TokenToPiece(int(s.lc.GetTokenSEP())) + doc
 		if !s.model.AddEOSToken() {
-			p += s.model.TokenToPiece(int(s.lc.GetTokenEOS()))
+			prompt = strings.ReplaceAll(prompt, "[EOS]", s.model.TokenToPiece(int(s.lc.GetTokenEOS())))
 		}
-		seq, err := s.NewSequence(p, nil, NewSequenceParams{embedding: true})
+		prompt = strings.ReplaceAll(prompt, "[SEP]", s.model.TokenToPiece(int(s.lc.GetTokenSEP())))
+		slog.Debug("reranking prompt", "index", i, "prompt", prompt)
+		seq, err := s.NewSequence(prompt, nil, NewSequenceParams{embedding: true})
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to create new sequence: %v", err), http.StatusInternalServerError)
 			return

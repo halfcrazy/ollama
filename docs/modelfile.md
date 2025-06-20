@@ -167,11 +167,13 @@ PARAMETER <parameter> <parametervalue>
 
 #### Template Variables
 
-| Variable          | Description                                                                                   |
-| ----------------- | --------------------------------------------------------------------------------------------- |
-| `{{ .System }}`   | The system message used to specify custom behavior.                                           |
-| `{{ .Prompt }}`   | The user prompt message.                                                                      |
-| `{{ .Response }}` | The response from the model. When generating a response, text after this variable is omitted. |
+| Variable           | Description                                                                                   |
+|--------------------|-----------------------------------------------------------------------------------------------|
+| `{{ .System }}`    | The system message used to specify custom behavior.                                           |
+| `{{ .Prompt }}`    | The user prompt message.                                                                      |
+| `{{ .Response }}`  | The response from the model. When generating a response, text after this variable is omitted. |
+| `{{ .Query }}`     | The user query message(for rerank usage).                                                     | 
+| `{{ .Documents }}` | The user provided documents(for rerank usage).                                                                  |
 
 ```
 TEMPLATE """{{ if .System }}<|im_start|>system
@@ -179,6 +181,13 @@ TEMPLATE """{{ if .System }}<|im_start|>system
 {{ end }}{{ if .Prompt }}<|im_start|>user
 {{ .Prompt }}<|im_end|>
 {{ end }}<|im_start|>assistant
+"""
+```
+
+```
+TEMPLATE """{{- range .Documents }}
+[BOS]{{ $.Query }}[EOS][SEP]{{ . }}[EOS]
+{{- end }}
 """
 ```
 

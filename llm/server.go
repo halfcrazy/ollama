@@ -954,9 +954,8 @@ func (s *llmServer) Embedding(ctx context.Context, input string) ([]float32, err
 }
 
 type RerankRequest struct {
-	Model     string   `json:"model"`
-	Query     string   `json:"query"`
-	Documents []string `json:"documents"` // list of documents to rerank
+	Model   string   `json:"model"`
+	Prompts []string `json:"prompts"`
 }
 type RerankResponse struct {
 	Results []struct {
